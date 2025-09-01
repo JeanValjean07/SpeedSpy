@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/Background"
+    android:fitsSystemWindows="false"
+    tools:context=".MainActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/HeadBackground"
+        android:outlineSpotShadowColor="@color/HeadText"
+        app:liftOnScrollColor="@color/HeadBackground"
+        android:outlineAmbientShadowColor="@color/HeadText"
+        >
+
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar1"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@color/HeadBackground"
+            android:elevation="10dp">
+
+            <TextView
+                android:id="@+id/toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:layout_marginStart="19dp"
+                android:text="视频列表"
+                android:textColor="@color/HeadText"
+                android:textSize="24sp" />
+
+
+
+
+            <Button
+                android:id="@+id/buttonSetting"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="end"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:layout_marginEnd="8dp"
+                android:padding="8dp"
+                android:textColor="@color/TextButtonText"
+                android:text="设置" />
+
+            <Button
+                android:id="@+id/buttonGuidance"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="end"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:textColor="@color/TextButtonText"
+                android:padding="8dp"
+                android:text="指南" />
+
+
+
+
+
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
+
+    <androidx.recyclerview.widget.RecyclerView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/recyclerview1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        />
+
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:backgroundTint="@color/ButtonBg1"
+        app:srcCompat="@drawable/ic_refresh"
+        app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Full"
+        />
+
+
+
+
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
