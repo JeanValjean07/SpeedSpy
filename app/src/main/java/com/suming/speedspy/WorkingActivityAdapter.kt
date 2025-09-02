@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,7 +40,7 @@ class WorkingActivityAdapter(
     //初始化—协程作用域
     private val coroutineScope_generateThumb = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val onBindViewHolder = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    //初始化-作用域信号量
+    //初始化-作用域并发数量
     private val decodeLimiter = Semaphore(20)
 
 
@@ -53,7 +52,6 @@ class WorkingActivityAdapter(
     @Volatile
     private var generateCoverWorking = false
 
-    //内部类定义
     inner class ThumbViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         var generateThumbJob: Job? = null
         var onBindViewHolderJob: Job? = null
@@ -61,11 +59,7 @@ class WorkingActivityAdapter(
     }
 
 
-
-    //固定回调函数合集
     override fun getItemCount() = (picNumber)
-
-
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ThumbViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.recycler_bar, parent, false)
@@ -75,7 +69,6 @@ class WorkingActivityAdapter(
     override fun onBindViewHolder(holder: ThumbViewHolder, position: Int) {
         val item = thumbItems[position]
         holder.itemView.updateLayoutParams<ViewGroup.LayoutParams> { this.width = eachPicWidth }
-
         holder.onBindViewHolderJob = onBindViewHolder.launch(Dispatchers.IO) {
             decodeLimiter.withPermit {
                 item.coverPath?.let { file ->
@@ -86,11 +79,11 @@ class WorkingActivityAdapter(
                             item.coverThumbBinded = true
                             return@launch
                         }
-                        else{  //if item.coverThumbBinded = true
+                        else{
                             return@launch
                         }
                     }
-                    else{  //if item.currentThumbType = true
+                    else{
                         val bmp = BitmapFactory.decodeFile(file.absolutePath)
                         withContext(Dispatchers.Main) { holder.ivThumbnail.setImageBitmap(bmp) }
                         return@launch
@@ -98,12 +91,10 @@ class WorkingActivityAdapter(
                 }
             }
         }
-    }//onBindViewHolder END
+    }
 
-    //额外回调函数合集
     override fun onViewAttachedToWindow(holder: ThumbViewHolder) {
         super.onViewAttachedToWindow(holder)
-        //开启判断流程
         if (isCoverPlaced){
             val position = holder.bindingAdapterPosition
             val item = thumbItems[position]
@@ -115,7 +106,7 @@ class WorkingActivityAdapter(
                 holder.generateThumbJob = coroutineScope_generateThumb.launch(Dispatchers.IO) { generateThumb(position) }
             }
         }
-        else{  //isCoverPlaced = false
+        else{
             generateCover()
         }
     }
@@ -131,11 +122,7 @@ class WorkingActivityAdapter(
         holder.onBindViewHolderJob?.cancel()
     }
 
-
-    //生命周期函数 END
     //Functions
-
-    //逻辑合集：真实缩略图
     //截取实际缩略图
     private suspend fun generateThumb(position: Int) {
         val item = thumbItems[position]
@@ -162,7 +149,7 @@ class WorkingActivityAdapter(
             coroutineContext.ensureActive()
             item.running = false
         }
-        catch (e: Exception) {
+        catch (_: Exception) {
         } finally {
             item.running = false
             retriever.release()
@@ -177,15 +164,8 @@ class WorkingActivityAdapter(
                 val targetCoverWidth = 200
                 val targetCoverHeight = (200 * ratio).toInt()
                 val scaledBitmap = frame.scale(targetCoverWidth, targetCoverHeight)
-
-                val success = scaledBitmap.compress(
-                    Bitmap.CompressFormat.WEBP,
-                    100,
-                    it
-                )
-                if (!success) {
-                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 15, it)
-                }
+                val success = scaledBitmap.compress(Bitmap.CompressFormat.WEBP, 100, it)
+                if (!success) { scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 15, it) }
                 scaledBitmap.recycle()
                 frame.recycle()
             }
@@ -196,10 +176,6 @@ class WorkingActivityAdapter(
             withContext(Dispatchers.Main) { notifyItemChanged(position) }
         }
     }
-
-
-
-    //逻辑合集：占位缩略图
     //截取占位缩略图
     private fun generateCover() {
         if (generateCoverWorking) return
@@ -213,10 +189,7 @@ class WorkingActivityAdapter(
             val w = wStr?.toIntOrNull() ?: 0
             val ratio = if (w != 0) h.toFloat() / w else 0f
 
-            val frame = retriever.getFrameAtTime(
-                500000,
-                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-            )
+            val frame = retriever.getFrameAtTime(500000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             retriever.release()
             if (frame != null) {
                 val outFile = File(context.cacheDir, "thumb_${videoPath.hashCode()}_cover.jpg")
@@ -224,14 +197,8 @@ class WorkingActivityAdapter(
                     val targetCoverWidth = 200
                     val targetCoverHeight = (200 * ratio).toInt()
                     val scaledBitmap = frame.scale(targetCoverWidth, targetCoverHeight)
-                    val success = scaledBitmap.compress(
-                        Bitmap.CompressFormat.WEBP,
-                        100,
-                        it
-                    )
-                    if (!success) {
-                        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 15, it)
-                    }
+                    val success = scaledBitmap.compress(Bitmap.CompressFormat.WEBP, 100, it)
+                    if (!success) { scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 15, it) }
                     scaledBitmap.recycle()
                     frame.recycle()
                 }
@@ -248,9 +215,7 @@ class WorkingActivityAdapter(
         val cover = File(context.cacheDir, "thumb_${videoPath.hashCode()}_cover.jpg")
         thumbItems.replaceAll { it.copy(coverPath = cover) }
         isCoverPlaced = true
-        withContext(Dispatchers.Main) {
-            notifyDataSetChanged()
-        }
+        withContext(Dispatchers.Main) { notifyDataSetChanged() }
         return
     }
 

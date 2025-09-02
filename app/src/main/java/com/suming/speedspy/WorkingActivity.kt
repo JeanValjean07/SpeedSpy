@@ -20,7 +20,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import android.util.Log
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -34,7 +33,6 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
@@ -56,7 +54,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -128,7 +125,8 @@ class WorkingActivity: AppCompatActivity()  {
     //保存为副本程序用到的参数
     private var newFileSaved = false   //标记已保存,防止重复保存副本
 
-    //这些已经自己都看不懂是干嘛的了，等待集中分析
+
+    //以下几个可能跟上面的功能有重复
     private var lastScrollerPositionSeek = 0
     private var dontScrollThisTime = false
     private var dropThisOnDown = false
@@ -138,7 +136,6 @@ class WorkingActivity: AppCompatActivity()  {
     @SuppressLint("CutPasteId", "SetTextI18n", "InflateParams")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //初始界面配置
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge()
         setContentView(R.layout.activity_working)
@@ -147,12 +144,12 @@ class WorkingActivity: AppCompatActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        //设置刷新率：待扩展
+        //设置刷新率：暂时没用(texture视频管线已经锁30帧了，系统就不会给界面锁帧)
         /*
         window.attributes.preferredRefreshRate = 60.0f
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         */
-
+        //音量
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         //设置项读取,检查和预置
@@ -260,7 +257,6 @@ class WorkingActivity: AppCompatActivity()  {
                     if (trackGroup.type == C.TRACK_TYPE_VIDEO) {
                         val format = trackGroup.getTrackFormat(0)
                         fps = format.frameRate
-                        Log.d("Media3", "实际帧率 = $fps")
                         break
                     }
                 }
@@ -324,7 +320,16 @@ class WorkingActivity: AppCompatActivity()  {
         absolutePath = getAbsoluteFilePath(this@WorkingActivity, videoUri).toString()
         rvThumbnails.layoutManager = LinearLayoutManager(this@WorkingActivity, LinearLayoutManager.HORIZONTAL, false)
         val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(this@WorkingActivity, videoUri)
+        try {
+            retriever.setDataSource(this@WorkingActivity, videoUri)
+        } catch (_: Exception) {
+            val data = Intent().apply {
+                putExtra("key", "needRefresh")
+            }
+            setResult(RESULT_OK, data)
+            finish()
+            return
+        }
         rvThumbnails.itemAnimator = null
         rvThumbnails.layoutParams.width = 0
         val videoDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt()
@@ -337,9 +342,9 @@ class WorkingActivity: AppCompatActivity()  {
                 picNumber = maxPicNumber
             }
         } else{
-            Toast.makeText(this@WorkingActivity, "视频长度获取失败,无法绘制控制界面", Toast.LENGTH_SHORT).show()
+            notice("视频长度获取失败,无法绘制控制界面",5000)
             finish()
-        }
+        }   //这段逻辑没写完但能正常工作？
         retriever.release()
 
 
@@ -422,8 +427,6 @@ class WorkingActivity: AppCompatActivity()  {
         //RecyclerView-事件监听器 -onScrollStateChanged -onScrolled
         rvThumbnails.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                //注意：onScrollStateChanged开始时先于onScrolled触发,结束时晚于onScrolled触发
-                //故：循环体的启动工作应交给onScrolled,而循环体的结束工作应交给onScrollStateChanged
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING){
                     dragging = true
                     scrolling = true
@@ -435,7 +438,6 @@ class WorkingActivity: AppCompatActivity()  {
                     return
                 }
                 if (newState == RecyclerView.SCROLL_STATE_IDLE){
-                    //stopVideoSeek("delay")
                     dragging = false
                     scrolling = false
                     return
@@ -563,16 +565,13 @@ class WorkingActivity: AppCompatActivity()  {
                 sharedPref.edit { putBoolean("linkScrolling", true) }
                 notice("已将进度条与视频进度同步",1000)
                 startScrollerSync()
-                //startVideoTimeSync()
                 buttonLinkMaterial.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ButtonBg))
                 stopVideoSeek()
-                //notice("已开启链接滚动条与视频进度",1000)
             }
             else{  //关闭链接滚动条与视频进度
                 linkScrollEnabled = false
                 sharedPref.edit { putBoolean("linkScrolling", false) }
                 stopScrollerSync()
-               // startVideoTimeSync()
                 buttonLinkMaterial.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ButtonBgClosed))
                 notice("已关闭链接滚动条与视频进度",2500)
             }
@@ -883,7 +882,6 @@ class WorkingActivity: AppCompatActivity()  {
             areaLength = receiveValue
             val emuType = findViewById<TextView>(R.id.emuType)
             emuType?.text = "${areaLength}米(手动填写)"
-            Log.d("EmuTypeChooseActivity", "onViewCreated: $areaLength")
         }
 
         //发起adapter联动
@@ -908,7 +906,7 @@ class WorkingActivity: AppCompatActivity()  {
 
         }
 
-        //系统手势控制：返回键重写
+        //系统手势监听：返回键重写
         onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 player.playWhenReady = false
@@ -922,7 +920,7 @@ class WorkingActivity: AppCompatActivity()  {
     private val syncScrollTaskHandler = Handler(Looper.getMainLooper())
     private val syncScrollTask = object : Runnable {
         override fun run() {
-            //基于实时读取视频当前时间的图片滚动，模拟连续刷新    问题：暂无明显问题
+            //基于实时读取视频当前时间的图片滚动，模拟连续刷新
             if (playerEnd){
                 playerEnd = false
                 notice("视频已播放至结尾,返回当前光标位置",1000)
@@ -943,7 +941,7 @@ class WorkingActivity: AppCompatActivity()  {
             lm.scrollToPositionWithOffset(scrollParam1, -scrollParam2)
             syncScrollTaskHandler.postDelayed(this, gap)
         }
-    } //runnable END
+    }
     private fun startScrollerSync() {
         if (dontScrollThisTime){
             dontScrollThisTime = false
@@ -971,25 +969,20 @@ class WorkingActivity: AppCompatActivity()  {
     private fun stopVideoTimeSync() {
         videoTimeSyncHandler.removeCallbacks(videoTimeSync)
     }
-    //runnable-3 - 视频智能倍速滚动#
+    //runnable-3 - 视频智能倍速滚动
     private var videoSmartScrollRunning = false
     private val videoSmartScrollHandler = Handler(Looper.getMainLooper())
     private var videoSmartScroll = object : Runnable{
         override fun run() {
-            //if (videoSmartScrollRunning) return
-            //videoSmartScrollRunning = true
             val recyclerView = findViewById<RecyclerView>(R.id.rvThumbnails)
             var delayGap = if (dragging){ 30L } else{ 30L }
             val videoPosition = (player.currentPosition)
             val scrollerPosition =  player.duration * (recyclerView.computeHorizontalScrollOffset().toFloat()/recyclerView.computeHorizontalScrollRange())
-            Log.e("SuMing","${scrollerPosition - videoPosition}")
             if (scrollerPosition < videoPosition +100) {
                 player.pause()
-                //videoSmartScrollRunning = false
             }else{
                 val positionGap = scrollerPosition - videoPosition
                 var speed5 = (((positionGap / 100).toInt()) /10.0).toFloat()
-                Log.e("SuMing","${scrollerPosition - videoPosition}")
                 if (speed5 > lastPlaySpeed){
                     speed5 = speed5 + 0.1f
                 }else if(speed5 < lastPlaySpeed){
@@ -1054,7 +1047,7 @@ class WorkingActivity: AppCompatActivity()  {
         if (playerEnd) playerEnd = false
         videoSeekHandler.post(videoSeek)
     }
-    private fun stopVideoSeek() {    //这里需要延迟关闭,让seekMargin(0&duration)有机会执行,否则seek0可能未执行时就被销毁
+    private fun stopVideoSeek() {
         videoSeekHandler.removeCallbacks(videoSeek)
     }
 
@@ -1251,21 +1244,19 @@ class WorkingActivity: AppCompatActivity()  {
 
     private fun getAbsoluteFilePath(context: Context, uri: Uri): String? {
         var absolutePath: String? = null
-
-        // 检查URI是否为媒体文件类型
+        // 检查URI
         if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
             val projection = arrayOf(MediaStore.Video.Media.DATA)
             val cursor = context.contentResolver.query(uri, projection, null, null, null)
             cursor?.use {
                 if (it.moveToFirst()) {
                     val columnIndex = it.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                    absolutePath = it.getString(columnIndex) // 这是完整的绝对路径
+                    absolutePath = it.getString(columnIndex) //绝对路径
                 }
             }
         } else if (uri.scheme == ContentResolver.SCHEME_FILE) {
-            absolutePath = uri.path // 文件URI直接获取路径
+            absolutePath = uri.path //文件URI直接获取路径
         }
-
         // 验证路径是否存在
         if (absolutePath != null && File(absolutePath).exists()) {
             return absolutePath
@@ -1290,7 +1281,7 @@ class WorkingActivity: AppCompatActivity()  {
     @SuppressLint("DefaultLocale")
     private fun formatTime(milliseconds: Long): String {
         val totalSeconds = milliseconds / 1000
-        //val hours = totalSeconds / 3600         //此类视频基本不可能超过一小时
+        //val hours = totalSeconds / 3600      //此类视频基本不可能超过一小时
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
         val millis = milliseconds % 1000 // 提取毫秒部分

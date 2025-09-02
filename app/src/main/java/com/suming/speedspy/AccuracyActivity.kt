@@ -32,7 +32,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
-
 class AccuracyActivity: DialogFragment(){
 
     companion object {
@@ -216,7 +215,7 @@ class AccuracyActivity: DialogFragment(){
     }//onCreate END
 
 
-    //功能：显示通知(做成job形式以应对连续输入)
+    //功能：显示通知
     private fun notice(text: String, duration: Long) {
         showNoticeJob(text, duration)
     }

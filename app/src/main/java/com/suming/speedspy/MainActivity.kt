@@ -8,11 +8,15 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.view.View
 import android.widget.Button
-import android.widget.Toast
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -25,14 +29,24 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import data.source.LocalVideoSource
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
 
 class MainActivity: AppCompatActivity() {
 
-    private val REQUEST_STORAGE_PERMISSION = 1001
-
     private lateinit var adapter: VideoPagingAdapter
+    //无法打开视频时的接收器
+    private val detailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult())
+    { result: ActivityResult ->
+        if (result.resultCode == RESULT_OK) {
+            if (result.data?.getStringExtra("key") == "needRefresh") {
+                notice("这条视频似乎无法播放", 3000)
+                load()
+            }
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,16 +58,16 @@ class MainActivity: AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        //准备工作
+        preCheck()
+        load()
 
         //按钮：刷新列表
         val button1 = findViewById<FloatingActionButton>(R.id.fab)
         button1.setOnClickListener {
-            runOnUiThread {
-                adapter.refresh()
-            }
+            runOnUiThread { adapter.refresh() }
             val recyclerview1 = findViewById<RecyclerView>(R.id.recyclerview1)
             recyclerview1.smoothScrollToPosition(0)
-            //Toast.makeText(this, "刷新", Toast.LENGTH_SHORT).show()
         }
         //按钮：指南
         val button2 = findViewById<Button>(R.id.buttonGuidance)
@@ -68,22 +82,16 @@ class MainActivity: AppCompatActivity() {
             startActivity(intent)
         }
 
-        preCheck()
-
-        load()
 
 
-
+        //监听返回手势
         onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val duration = intent.getIntExtra("duration", 0)
                 val intent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_HOME)
-                    putExtra("duration", duration)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 startActivity(intent)
-
                 Handler(Looper.getMainLooper()).postDelayed({
                     val pid = Process.myPid()
                     Process.killProcess(pid)
@@ -91,68 +99,63 @@ class MainActivity: AppCompatActivity() {
             }
         })
 
-
-
     }//onCreate END
 
 
+    private val REQUEST_STORAGE_PERMISSION = 1001
     private fun preCheck(){
-        /*
-        if (ContextCompat.checkSelfPermission(this,
-                android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            // 申请权限
-            ActivityCompat.requestPermissions(this,
-                arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE),
-                REQUEST_STORAGE_PERMISSION)
-            Toast.makeText(this, "需要访问媒体来读取视频，授权后请手动刷新", Toast.LENGTH_SHORT).show()
-        }*/
         val requiredPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_VIDEO // Android 13+ 使用视频专用权限
+            Manifest.permission.READ_MEDIA_VIDEO
         } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE // Android 12及以下使用旧权限
+            Manifest.permission.READ_EXTERNAL_STORAGE
         }
-
         if (ContextCompat.checkSelfPermission(this, requiredPermission) != PackageManager.PERMISSION_GRANTED) {
-            // 申请对应版本的权限
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(requiredPermission),
                 REQUEST_STORAGE_PERMISSION
             )
-            Toast.makeText(this, "需要访问媒体来读取视频，授权后请手动刷新", Toast.LENGTH_SHORT).show()
+            notice("需要访问媒体权限来读取视频,授权后请手动刷新", 5000)
         }
     }
 
     private fun load(){
-        //创建数据源实例
-        val videoSource = LocalVideoSource(contentResolver, this)
-        //构造Pager
         val pager = Pager(
-            config = PagingConfig(pageSize = 20), // 每页加载20个视频
-            //pagingSourceFactory = { videoSource }
+            config = PagingConfig(pageSize = 20),
             pagingSourceFactory = { LocalVideoSource(contentResolver, this)
             }
-
         )
 
-        //定位RecyclerView
         val recyclerview1 = findViewById<RecyclerView>(R.id.recyclerview1)
-        //为选中的RecyclerView设置LayoutManager
         recyclerview1.layoutManager = LinearLayoutManager(this)
-        //挂载Adapter
-        adapter = VideoPagingAdapter()
-        //val adapter = VideoAdapter(videos)
+        adapter = VideoPagingAdapter { item ->  //点击事件
+            val intent = Intent(this, WorkingActivity::class.java).apply {
+                putExtra("video", item)
+            }
+            detailLauncher.launch(intent)
+        }
         recyclerview1.adapter = adapter
 
-
         lifecycleScope.launch {
-            pager.flow.collect {
-                adapter.submitData(it)
-            }
+            pager.flow.collect { adapter.submitData(it) }
         }
-
     }
 
+    private var showNoticeJob: Job? = null
+    private fun showNoticeJob(text: String, duration: Long) {
+        showNoticeJob?.cancel()
+        showNoticeJob = lifecycleScope.launch {
+            val notice = findViewById<TextView>(R.id.notice)
+            val noticeCard = findViewById<CardView>(R.id.noticeCard)
+            noticeCard.visibility = View.VISIBLE
+            notice.text = text
+            delay(duration)
+            noticeCard.visibility = View.GONE
+        }
+    }
+    private fun notice(text: String, duration: Long) {
+        showNoticeJob(text, duration)
+    }
 
 
 }//class END

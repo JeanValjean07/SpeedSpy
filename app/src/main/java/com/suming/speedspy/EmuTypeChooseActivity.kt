@@ -42,8 +42,6 @@ class EmuTypeChooseActivity: DialogFragment(){
     var areaLength = 0f
 
     companion object {
-
-
         fun newInstance(): EmuTypeChooseActivity =
             EmuTypeChooseActivity().apply {
                 arguments = bundleOf(
@@ -52,12 +50,10 @@ class EmuTypeChooseActivity: DialogFragment(){
             }
     }
 
-
     override fun onStart() {
         super.onStart()
         dialog?.window?.setWindowAnimations(R.style.DialogSlideInOut)
         dialog?.window?.setDimAmount(0.5f)
-
         dialog?.window?.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
         dialog?.window?.statusBarColor = Color.TRANSPARENT
         dialog?.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -125,7 +121,8 @@ class EmuTypeChooseActivity: DialogFragment(){
     }//onCreate END
 
 
-    //功能：显示通知(做成job形式以应对连续输入)
+    //Functions
+    //显示通知
     private fun notice(text: String, duration: Long) {
         showNoticeJob(text, duration)
     }

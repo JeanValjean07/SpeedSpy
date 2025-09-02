@@ -18,10 +18,7 @@
         app:liftOnScrollColor="@color/HeadBackground"
         app:contentInsetStart="0dp"
         app:contentInsetEnd="0dp"
-        android:outlineAmbientShadowColor="@color/HeadText"
-        >
-
-
+        android:outlineAmbientShadowColor="@color/HeadText">
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar1"
             android:layout_width="match_parent"
@@ -64,7 +61,6 @@
 
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
-
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -196,6 +192,30 @@
                         android:padding="16dp"
                         android:text="前往"
                         android:textSize="11sp"
+                        android:layout_weight="0"/>
+                </LinearLayout>
+
+
+            </androidx.cardview.widget.CardView>
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="5dp"
+                android:layout_marginBottom="10dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp">
+                <LinearLayout
+
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="16dp"
+                        android:text="软件开源免费,如果您是付费获得此APP,请在酷安向我汇报"
+                        android:textSize="13sp"
                         android:layout_weight="0"/>
                 </LinearLayout>
 

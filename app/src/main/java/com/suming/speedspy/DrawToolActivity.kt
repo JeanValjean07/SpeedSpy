@@ -9,15 +9,15 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 
-class VerticalLineWithBallView @JvmOverloads constructor(
+class DrawToolActivity @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    // 小球半径
+    //小球半径
     private val ballRadius = 30f
-    // 竖线长度
+    //竖线长度
     private val lineLength = 900f
-    // 小球圆心坐标
+    //小球圆心坐标
     private var ballY1 = 100f
     private var ballX1 = 100f
     private var ballY2 = 100f

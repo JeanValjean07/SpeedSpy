@@ -6,7 +6,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/Background">
-
     <!-- 根1 - Appbar -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
@@ -22,8 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_marginStart="10dp"
-            android:orientation="horizontal"
-            >
+            android:orientation="horizontal">
             <ImageButton
                 android:id="@+id/buttonExit"
                 android:layout_width="40dp"
@@ -54,13 +52,8 @@
                 android:layout_gravity="center"
                 android:text="播放器打开"
                 android:layout_weight="0"/>
-
         </LinearLayout>
-
     </androidx.appcompat.widget.Toolbar>
-
-
-
     <!-- 根2 - 视频播放区 -->
     <FrameLayout
         android:id="@+id/playerContainer"
@@ -69,8 +62,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
-        app:layout_constraintBottom_toTopOf="@id/bottomCardContainer"
-        >
+        app:layout_constraintBottom_toTopOf="@id/bottomCardContainer">
+        <!-- playerView -->
         <androidx.media3.ui.PlayerView
             android:id="@+id/playerView"
             android:layout_width="match_parent"
@@ -86,6 +79,7 @@
                 android:background="@color/Background"
                 android:visibility="visible"/>
         </androidx.media3.ui.PlayerView>
+        <!-- Notice卡片 -->
         <androidx.cardview.widget.CardView
             android:id="@+id/noticeCard"
             android:layout_width="wrap_content"
@@ -110,11 +104,7 @@
                 />
 
         </androidx.cardview.widget.CardView>
-
-
     </FrameLayout>
-
-
     <!-- 根3 - 功能区 -->
     <androidx.cardview.widget.CardView
         android:id="@+id/bottomCardContainer"
