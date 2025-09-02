@@ -55,12 +55,10 @@ class SettingsActivity: AppCompatActivity() {
         //按钮：前往项目Github仓库页
         val buttonGoGithub = findViewById<TextView>(R.id.buttonGoGithub)
         buttonGoGithub.setOnClickListener {
-            val url = "https://github.com/JeanValjean07/"
+            val url = "https://github.com/JeanValjean07/SpeedSpy"
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             startActivity(intent)
         }
-
-
 
 
 
