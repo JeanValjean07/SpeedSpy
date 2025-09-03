@@ -37,7 +37,21 @@
         <activity android:name=".WorkingActivity"
             android:theme="@style/MainTheme"
             android:configChanges="uiMode|screenSize|smallestScreenSize|screenLayout|orientation"
-            android:exported="true"/>
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+
+
+        </activity>
 
         <activity android:name=".SettingsActivity"
             android:theme="@style/MainTheme"

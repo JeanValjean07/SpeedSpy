@@ -32,16 +32,14 @@ class LocalVideoSource(
 
         val list = mutableListOf<VideoItem>()
 
-        //指定需要的列
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.DURATION
         )
-        //排序：按添加时间倒序
+
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
 
-        // 3. 查询（只按排序拿全部）
         contentResolver.query(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
             projection, null, null, sortOrder
@@ -50,9 +48,7 @@ class LocalVideoSource(
             val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
             val durCol  = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
 
-            // 4. 手动跳到 offset 行
             if (cursor.moveToPosition(offset)) {
-                // 5. 连续读 limit 条
                 var left = limit
                 do {
                     val id   = cursor.getLong(idCol)
@@ -70,7 +66,6 @@ class LocalVideoSource(
             }
         }
 
-        // 6. 返回分页结果
         return LoadResult.Page(
             data = list,
             prevKey = if (page == 0) null else page - 1,
@@ -94,7 +89,6 @@ class LocalVideoSource(
             null
         } ?: return null
 
-        // 把 Bitmap 保存到私有缓存目录
         return saveThumbToCache(bmp)
     }
 

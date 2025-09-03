@@ -170,8 +170,7 @@ class MainActivity: AppCompatActivity() {
     private fun load(){
         val pager = Pager(
             config = PagingConfig(pageSize = 20),
-            pagingSourceFactory = { LocalVideoSource(contentResolver, this)
-            }
+            pagingSourceFactory = { LocalVideoSource(contentResolver, this) }
         )
 
         val recyclerview1 = findViewById<RecyclerView>(R.id.recyclerview1)

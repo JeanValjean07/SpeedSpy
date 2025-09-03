@@ -35,6 +35,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
@@ -131,6 +132,8 @@ class WorkingActivity: AppCompatActivity()  {
     private var newFileSaved = false   //标记已保存,防止重复保存副本
     //旧机型标识
     private var isCompatibleDevice = false
+    private var cannotOpen = false
+
     //以下几个可能跟上面的功能有重复
     private var lastScrollerPositionSeek = 0
     private var dontScrollThisTime = false
@@ -178,6 +181,9 @@ class WorkingActivity: AppCompatActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+
+
+
         //设置刷新率
         /*
         window.attributes.preferredRefreshRate = 60.0f
@@ -208,14 +214,27 @@ class WorkingActivity: AppCompatActivity()  {
         preCheck()
 
 
-        //视频播放初始化
-        val videoItem = if (Build.VERSION.SDK_INT >= 33) {
-            intent.getParcelableExtra("video", VideoItem::class.java)
-        } else {
-            @Suppress("DEPRECATION") intent.getParcelableExtra("video")
-        } ?: run { finish(); return }
-        val playerView = findViewById<PlayerView>(R.id.playerView)
+        //反序列化item + 支持用分享打开和用其他应用打开，暂不支持批量打开
+        val videoItem: VideoItem? = when (intent?.action) {
+            Intent.ACTION_SEND -> {
+                val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return finish()
+                VideoItem(0, uri, "from share", 0)
+            }
+            Intent.ACTION_VIEW -> {
+                val uri = intent.data ?: return finish()
+                VideoItem(0, uri, "from 114514", 0)
+            }
+            else -> intent.getParcelableExtra("video")
+        }
+        if (videoItem == null) {
+            Toast.makeText(this, "无法打开这条视频", Toast.LENGTH_SHORT).show()
+            cannotOpen = true
+            finish()
+            return
+        } //防空
 
+        //播放器初始化
+        val playerView = findViewById<PlayerView>(R.id.playerView)
         player = ExoPlayer.Builder(this)
             .setSeekParameters(SeekParameters.EXACT)
             .setWakeMode(WAKE_MODE_NETWORK)
@@ -1175,7 +1194,9 @@ class WorkingActivity: AppCompatActivity()  {
         stopVideoSmartScroll()
         stopVideoTimeSync()
         stopScrollerSync()
-        player.release()
+        if (!cannotOpen){
+            player.release()
+        }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {

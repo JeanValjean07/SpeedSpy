@@ -4,18 +4,14 @@ import android.net.Uri
 import android.os.Parcel
 import android.os.Parcelable
 
-
-
 data class VideoItem (
 
-    val id: Long,
+    val id: Long = 0,
     val uri: Uri,
     val name: String,
     val durationMs: Long,
     val markCount: Int = 0,
     val thumbnailUri: Uri? = null
-
-
 
 ): Parcelable{
     override fun describeContents(): Int = 0
