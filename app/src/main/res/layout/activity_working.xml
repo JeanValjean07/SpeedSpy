@@ -39,6 +39,21 @@
                 android:layout_height="1dp"
                 android:layout_weight="1"/>
             <Button
+                android:id="@+id/buttonReEncode"
+                android:layout_width="80dp"
+                android:layout_height="37dp"
+                app:cornerRadius="5dp"
+                android:padding="0dp"
+                android:textSize="12sp"
+                android:gravity="center"
+                android:textColor="@color/ButtonText"
+                android:backgroundTint="@color/ButtonBg"
+                android:layout_marginEnd="10dp"
+                android:layout_gravity="center"
+                android:text="重启解码器"
+                android:visibility="gone"
+                android:layout_weight="0"/>
+            <Button
                 android:id="@+id/buttonOpenInSys"
                 android:layout_width="80dp"
                 android:layout_height="37dp"

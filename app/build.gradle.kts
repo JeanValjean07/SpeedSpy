@@ -1,14 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-
     id("com.google.android.gms.oss-licenses-plugin")
 }
 
 android {
     namespace = "com.suming.speedspy"
     compileSdk = 36
-
 
 
     compileSdk = 36
@@ -21,7 +19,7 @@ android {
         minSdk = 29
         targetSdk = 36
         versionCode = 1
-        versionName = "1.1.0"
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,6 +50,7 @@ dependencies {
     implementation("io.coil-kt:coil:2.4.0")
     implementation("com.github.chrisbanes:PhotoView:2.3.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -59,6 +58,7 @@ dependencies {
     implementation(libs.androidx.leanback.paging)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.media3.transformer)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

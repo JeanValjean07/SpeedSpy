@@ -1,6 +1,7 @@
 package com.suming.speedspy
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
 import android.content.ContentResolver
 import android.content.ContentValues
@@ -11,6 +12,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.media.AudioManager
+import android.media.MediaCodec
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -20,6 +22,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.util.Log
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -47,17 +50,30 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
+import androidx.media3.common.C.WAKE_MODE_NETWORK
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
+import androidx.media3.exoplayer.source.TrackGroupArray
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.trackselection.TrackSelectionArray
+import androidx.media3.transformer.Codec
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.suming.speedspy.WorkingActivity.DeviceCompatUtil.isOldDevice
 import com.suming.speedspy.data.model.ThumbItem
 import data.model.VideoItem
 import kotlinx.coroutines.CoroutineScope
@@ -69,6 +85,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+@UnstableApi
 class WorkingActivity: AppCompatActivity()  {
 
     //时间戳信息显示位
@@ -124,12 +141,36 @@ class WorkingActivity: AppCompatActivity()  {
     private var scrollerPositionGap = 0
     //保存为副本程序用到的参数
     private var newFileSaved = false   //标记已保存,防止重复保存副本
-
-
+    //旧机型标识
+    private var isOldDevice = false
     //以下几个可能跟上面的功能有重复
     private var lastScrollerPositionSeek = 0
     private var dontScrollThisTime = false
     private var dropThisOnDown = false
+
+    //旧机型兼容判断
+    object DeviceCompatUtil {
+        private val SOC_MAP = mapOf(
+            "kirin710" to 700,
+            "kirin970" to 970,
+            "kirin980" to 980,
+            "kirin990" to 990,
+            "kirin9000" to 1000,
+
+            "msm8998"  to 835,
+            "sdm845"   to 845,
+        )
+
+        fun isOldDevice(): Boolean {
+            val hw = Build.HARDWARE.lowercase()
+            val soc = SOC_MAP.entries.find { hw.contains(it.key) }?.value ?: return false
+            return when {
+                hw.contains("kirin") -> soc <= 980
+                hw.contains("sdm") || hw.contains("msm") || hw.contains("sm") -> soc <= 845
+                else -> false
+            }
+        }
+    }
 
 
     @OptIn(UnstableApi::class)
@@ -144,7 +185,7 @@ class WorkingActivity: AppCompatActivity()  {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        //设置刷新率：暂时没用(texture视频管线已经锁30帧了，系统就不会给界面锁帧)
+        //设置刷新率
         /*
         window.attributes.preferredRefreshRate = 60.0f
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -171,14 +212,8 @@ class WorkingActivity: AppCompatActivity()  {
             alwaysSeekEnabled = prefs.getBoolean("alwaysSeek", false)
         } else{
             alwaysSeekEnabled = prefs.getBoolean("alwaysSeek", false) }
+        preCheck()
 
-
-        //固定控件初始化：退出按钮
-        val buttonExit=findViewById<View>(R.id.buttonExit)
-        buttonExit.setOnClickListener {
-            player.playWhenReady = false
-            finish()
-        }
 
         //视频播放初始化
         val videoItem = if (Build.VERSION.SDK_INT >= 33) {
@@ -188,13 +223,9 @@ class WorkingActivity: AppCompatActivity()  {
         } ?: run { finish(); return }
         val playerView = findViewById<PlayerView>(R.id.playerView)
 
-
-
         player = ExoPlayer.Builder(this)
             .setSeekParameters(SeekParameters.EXACT)
-            .setRenderersFactory(
-                DefaultRenderersFactory(this).setEnableDecoderFallback(true)
-            )
+            .setWakeMode(WAKE_MODE_NETWORK)
             .build()
             .apply { setMediaItem(MediaItem.fromUri(videoItem.uri)) }
 
@@ -254,14 +285,45 @@ class WorkingActivity: AppCompatActivity()  {
             }
             override fun onTracksChanged(tracks: Tracks) {
                 for (trackGroup in tracks.groups) {
-                    if (trackGroup.type == C.TRACK_TYPE_VIDEO) {
-                        val format = trackGroup.getTrackFormat(0)
-                        fps = format.frameRate
-                        break
-                    }
+                    val format = trackGroup.getTrackFormat(0)
+                    fps = format.frameRate
+                    break
+                }
+            }
+            override fun onPlayerError(error: PlaybackException) {
+                Log.e("MediaCodec", "播放出错：${error.errorCodeName} / ${error.message}")
+                when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ->
+                        Log.e("MediaCodec", "解码器初始化失败，可考虑重试软解")
+
+                    PlaybackException.ERROR_CODE_IO_UNSPECIFIED ->
+                        Log.e("MediaCodec", "网络或文件 IO 错误")
+
+                    PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ->
+                        Log.e("MediaCodec", "直播落后，需要重新 seek 到最新位置")
                 }
             }
         })
+
+        //测试器 codec
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onVideoDecoderInitialized(eventTime: AnalyticsListener.EventTime, decoderName: String, initializationDurationMs: Long) {
+                Log.e("MediaCodec", "当前视频解码器 = $decoderName")
+            }
+            override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: PlaybackException) {
+                Log.e("MediaCodec", "AnalyticsListener 捕获错误：${error.errorCodeName}")
+            }
+        })
+        try {
+            val mime = "video/avc"
+            val decoderInfos = MediaCodecUtil.getDecoderInfos(mime, false, false)
+            Log.e("MediaCodec", "查询当前系统支持的解码器：已完成，数量=${decoderInfos.size}")
+            for (info in decoderInfos) {
+                Log.e("MediaCodec", "name=${info.name}, hardware=${info.hardwareAccelerated}")
+            }
+        } catch (t: Throwable) {
+            Log.e("MediaCodec", "查询解码器失败", t)
+        }
 
         //时间戳文本：开始(00:00.000),当前时间,总时间(均可点击)
         val seekStart = findViewById<TextView>(R.id.seekStart)
@@ -493,6 +555,31 @@ class WorkingActivity: AppCompatActivity()  {
         })
 
 
+        //固定控件初始化：退出按钮
+        val buttonExit=findViewById<View>(R.id.buttonExit)
+        buttonExit.setOnClickListener {
+            player.playWhenReady = false
+            finish()
+        }
+        //按钮：重启解码器
+        val buttonReEncode = findViewById<Button>(R.id.buttonReEncode)
+        buttonReEncode.setOnClickListener {
+            notice("重启解码器中,可能需要等待几秒钟",2000)
+            player.release()
+            MediaCodec.createDecoderByType("video/avc").release()
+            player.setMediaItem(MediaItem.fromUri(videoUri))
+            val playerView = findViewById<PlayerView>(R.id.playerView)
+            player = ExoPlayer.Builder(this)
+                .setSeekParameters(SeekParameters.EXACT)
+                .setWakeMode(WAKE_MODE_NETWORK)
+                .build()
+                .apply { setMediaItem(MediaItem.fromUri(videoItem.uri)) }
+
+            playerView.player = player
+            player.prepare()
+            player.playWhenReady = true
+
+        }
         //按钮：在系统播放器打开
         val buttonOpenInSys = findViewById<Button>(R.id.buttonOpenInSys)
         buttonOpenInSys.setOnClickListener {
@@ -853,7 +940,6 @@ class WorkingActivity: AppCompatActivity()  {
         }
 
 
-
         //Dialog返回值接收器与判断逻辑
         supportFragmentManager.setFragmentResultListener("requestKey", this) { _, bundle ->
             val Marking1 = findViewById<TextView>(R.id.marking1)
@@ -909,7 +995,8 @@ class WorkingActivity: AppCompatActivity()  {
         //系统手势监听：返回键重写
         onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                player.playWhenReady = false
+                MediaCodec.createDecoderByType("video/avc").release()
+                player.release()
                 finish()
             }
         })
@@ -1050,6 +1137,7 @@ class WorkingActivity: AppCompatActivity()  {
     private fun stopVideoSeek() {
         videoSeekHandler.removeCallbacks(videoSeek)
     }
+
 
     //job-1 -seek
     private var seekJob: Job? = null
@@ -1226,7 +1314,6 @@ class WorkingActivity: AppCompatActivity()  {
                 startVideoTimeSync()
             }
         }
-
     }
 
     @OptIn(UnstableApi::class)
@@ -1274,6 +1361,17 @@ class WorkingActivity: AppCompatActivity()  {
         else{
             PauseImage.visibility = View.GONE
             ContinueImage.visibility = View.VISIBLE
+        }
+    }
+
+    private fun preCheck(){
+        isOldDevice = isOldDevice()
+        if (isOldDevice){
+            notice("当前存在兼容问题,播放假死时,请手动重启解码器",3000)
+        }
+        val buttonReEncode = findViewById<Button>(R.id.buttonReEncode)
+        if (isOldDevice){
+            buttonReEncode.visibility = View.VISIBLE
         }
     }
 
