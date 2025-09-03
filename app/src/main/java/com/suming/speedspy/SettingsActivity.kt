@@ -17,7 +17,7 @@ import androidx.core.view.WindowInsetsCompat
 class SettingsActivity: AppCompatActivity() {
 
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint("SetTextI18n", "QueryPermissionsNeeded")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -48,9 +48,14 @@ class SettingsActivity: AppCompatActivity() {
         //按钮：前往酷安主页
         val buttonGoCoolApk = findViewById<TextView>(R.id.buttonGoCoolApk)
         buttonGoCoolApk.setOnClickListener {
-            val url = "http://www.coolapk.com/u/3105725"
-            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-            startActivity(intent)
+            val coolapkUri = "coolmarket://u/3105725".toUri()
+            val intent = Intent(Intent.ACTION_VIEW, coolapkUri)
+            if (intent.resolveActivity(packageManager) != null) {
+                startActivity(intent)
+            } else {
+                val webUri = "https://www.coolapk.com/u/3105725".toUri()
+                startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            }
         }
         //按钮：前往项目Github仓库页
         val buttonGoGithub = findViewById<TextView>(R.id.buttonGoGithub)

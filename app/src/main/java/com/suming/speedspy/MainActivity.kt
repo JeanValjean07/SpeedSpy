@@ -15,6 +15,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
@@ -23,11 +24,13 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.util.UnstableApi
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.suming.speedspy.MainActivity.DeviceCompatUtil.isCompatibleDevice
 import data.source.LocalVideoSource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,6 +46,36 @@ class MainActivity: AppCompatActivity() {
             if (result.data?.getStringExtra("key") == "needRefresh") {
                 notice("这条视频似乎无法播放", 3000)
                 load()
+            }
+        }
+    }
+
+
+    //旧机型兼容判断
+    object DeviceCompatUtil {
+        /*
+        private val SOC_MAP = mapOf(
+            "kirin710" to 700,
+            "kirin970" to 970,
+            "kirin980" to 980,
+            "kirin990" to 990,
+            "kirin9000" to 1000,
+
+            "msm8998"  to 835,
+            "sdm845"   to 845,
+        )
+        */
+        fun isCompatibleDevice(): Boolean {
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                val hw = Build.HARDWARE.lowercase()
+                //val soc = SOC_MAP.entries.find { hw.contains(it.key) }?.value ?: return false
+                return when {
+                    hw.contains("kirin") -> return true
+                    hw.contains("sdm") -> return true       //暂不完善soc细分判断
+                    else -> false
+                }
+            }else{
+                return false
             }
         }
     }
@@ -73,6 +106,9 @@ class MainActivity: AppCompatActivity() {
         val button2 = findViewById<Button>(R.id.buttonGuidance)
         button2.setOnClickListener {
             val intent = Intent(this, GuidanceActivity::class.java)
+            if (isCompatibleDevice){
+                intent.putExtra("deviceInfo", "old")
+            }
             startActivity(intent)
         }
         //按钮：设置
@@ -80,6 +116,11 @@ class MainActivity: AppCompatActivity() {
         buttonSettings.setOnClickListener {
             val intent = Intent(this, SettingsActivity::class.java)
             startActivity(intent)
+        }
+        //提示卡点击时关闭
+        val noticeCard = findViewById<CardView>(R.id.noticeCard)
+        noticeCard.setOnClickListener {
+            noticeCard.visibility = View.GONE
         }
 
 
@@ -101,7 +142,7 @@ class MainActivity: AppCompatActivity() {
 
     }//onCreate END
 
-
+    private var isCompatibleDevice = false
     private val REQUEST_STORAGE_PERMISSION = 1001
     private fun preCheck(){
         val requiredPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -117,8 +158,15 @@ class MainActivity: AppCompatActivity() {
             )
             notice("需要访问媒体权限来读取视频,授权后请手动刷新", 5000)
         }
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q){
+            isCompatibleDevice = isCompatibleDevice()
+            if (isCompatibleDevice){
+                notice("\"指南\"页面有关于您设备兼容性的消息,请前往查看", 10000)
+            }
+        }
     }
 
+    @OptIn(UnstableApi::class)
     private fun load(){
         val pager = Pager(
             config = PagingConfig(pageSize = 20),

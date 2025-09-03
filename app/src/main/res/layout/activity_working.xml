@@ -39,21 +39,6 @@
                 android:layout_height="1dp"
                 android:layout_weight="1"/>
             <Button
-                android:id="@+id/buttonReEncode"
-                android:layout_width="80dp"
-                android:layout_height="37dp"
-                app:cornerRadius="5dp"
-                android:padding="0dp"
-                android:textSize="12sp"
-                android:gravity="center"
-                android:textColor="@color/ButtonText"
-                android:backgroundTint="@color/ButtonBg"
-                android:layout_marginEnd="10dp"
-                android:layout_gravity="center"
-                android:text="重启解码器"
-                android:visibility="gone"
-                android:layout_weight="0"/>
-            <Button
                 android:id="@+id/buttonOpenInSys"
                 android:layout_width="80dp"
                 android:layout_height="37dp"
@@ -758,12 +743,11 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/scrollerContainer"
                 android:layout_width="match_parent"
-                android:layout_height="44dp"
+                android:layout_height="45dp"
                 android:layout_marginBottom="20dp"
                 app:layout_constraintBottom_toTopOf="@id/bottomActionsContainer"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent">
-
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:id="@+id/innerContainer"
                     android:layout_width="0dp"
@@ -774,7 +758,7 @@
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent">
-
+                    <!-- RecyclerView核心 -->
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvThumbnails"
                         android:layout_width="0dp"
@@ -791,8 +775,6 @@
                         app:layout_constraintTop_toTopOf="@+id/innerContainer"
                         app:layout_constraintVertical_bias="0.0" />
                 </androidx.constraintlayout.widget.ConstraintLayout>
-
-
                 <View
                     android:layout_width="2dp"
                     android:layout_height="match_parent"

@@ -48,7 +48,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.media3.common.C
 import androidx.media3.common.C.WAKE_MODE_NETWORK
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -63,7 +62,7 @@ import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import com.suming.speedspy.WorkingActivity.DeviceCompatUtil.isOldDevice
+import com.suming.speedspy.WorkingActivity.DeviceCompatUtil.isCompatibleDevice
 import com.suming.speedspy.data.model.ThumbItem
 import data.model.VideoItem
 import kotlinx.coroutines.CoroutineScope
@@ -92,10 +91,10 @@ class WorkingActivity: AppCompatActivity()  {
     //音量配置参数
     private var currentVolume = 0
     //缩略图绘制参数
-    private var maxPicNumber = 20         //缩略图最大数量
-    private var eachPicWidth = 120       //单张缩略图最大宽度
-    private var picNumber = 0             //最终决定使用的缩略图数量
-    private var eachPicDuration: Int = 0   //单张缩略图最大对应时长
+    private var maxPicNumber = 20         //缩略图最大数量(写死)
+    private var eachPicWidth = 0          //单张缩略图最大宽度(现场计算),高度45dp布局写死
+    private var picNumber = 0             //缩略图数量(现场计算)
+    private var eachPicDuration: Int = 0  //单张缩略图对应时长(现场计算)
     //点击和滑动状态标识
     private var onDown = false
     private var onScrolling = false
@@ -131,7 +130,7 @@ class WorkingActivity: AppCompatActivity()  {
     //保存为副本程序用到的参数
     private var newFileSaved = false   //标记已保存,防止重复保存副本
     //旧机型标识
-    private var isOldDevice = false
+    private var isCompatibleDevice = false
     //以下几个可能跟上面的功能有重复
     private var lastScrollerPositionSeek = 0
     private var dontScrollThisTime = false
@@ -139,6 +138,7 @@ class WorkingActivity: AppCompatActivity()  {
 
     //旧机型兼容判断
     object DeviceCompatUtil {
+        /*
         private val SOC_MAP = mapOf(
             "kirin710" to 700,
             "kirin970" to 970,
@@ -149,14 +149,18 @@ class WorkingActivity: AppCompatActivity()  {
             "msm8998"  to 835,
             "sdm845"   to 845,
         )
-
-        fun isOldDevice(): Boolean {
-            val hw = Build.HARDWARE.lowercase()
-            val soc = SOC_MAP.entries.find { hw.contains(it.key) }?.value ?: return false
-            return when {
-                hw.contains("kirin") -> soc <= 980
-                hw.contains("sdm") || hw.contains("msm") || hw.contains("sm") -> soc <= 845
-                else -> false
+        */
+        fun isCompatibleDevice(): Boolean {
+            if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                val hw = Build.HARDWARE.lowercase()
+                //val soc = SOC_MAP.entries.find { hw.contains(it.key) }?.value ?: return false
+                return when {
+                    hw.contains("kirin") -> return true
+                    hw.contains("sdm") -> return true       //暂不完善soc细分判断
+                    else -> false
+                }
+            }else{
+                return false
             }
         }
     }
@@ -372,10 +376,12 @@ class WorkingActivity: AppCompatActivity()  {
         rvThumbnails.layoutParams.width = 0
         val videoDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt()
         if (videoDuration != null) {
-            if (videoDuration/1000 > maxPicNumber){
+            if (videoDuration/1000 > maxPicNumber){  //用47dp计算,做成长方形一点的
+                eachPicWidth = (47 * displayMetrics.density).toInt()
                 eachPicDuration = (videoDuration.div(100)*100) / maxPicNumber
                 picNumber = maxPicNumber
             }else{
+                eachPicWidth = (47 * displayMetrics.density).toInt()
                 picNumber = videoDuration/1000+1
                 eachPicDuration = (videoDuration.div(100)*100)/picNumber
             }
@@ -537,24 +543,10 @@ class WorkingActivity: AppCompatActivity()  {
             player.playWhenReady = false
             finish()
         }
-        //按钮：重启解码器
-        val buttonReEncode = findViewById<Button>(R.id.buttonReEncode)
-        buttonReEncode.setOnClickListener {
-            notice("重启解码器中,可能需要等待几秒钟",2000)
-            player.release()
-            MediaCodec.createDecoderByType("video/avc").release()
-            player.setMediaItem(MediaItem.fromUri(videoUri))
-            val playerView = findViewById<PlayerView>(R.id.playerView)
-            player = ExoPlayer.Builder(this)
-                .setSeekParameters(SeekParameters.EXACT)
-                .setWakeMode(WAKE_MODE_NETWORK)
-                .build()
-                .apply { setMediaItem(MediaItem.fromUri(videoItem.uri)) }
-
-            playerView.player = player
-            player.prepare()
-            player.playWhenReady = true
-
+        //提示卡点击时关闭
+        val noticeCard = findViewById<CardView>(R.id.noticeCard)
+        noticeCard.setOnClickListener {
+            noticeCard.visibility = View.GONE
         }
         //按钮：在系统播放器打开
         val buttonOpenInSys = findViewById<Button>(R.id.buttonOpenInSys)
@@ -1344,11 +1336,7 @@ class WorkingActivity: AppCompatActivity()  {
     }
 
     private fun preCheck(){
-        isOldDevice = isOldDevice()
-        val buttonReEncode = findViewById<Button>(R.id.buttonReEncode)
-        if (isOldDevice){
-            buttonReEncode.visibility = View.VISIBLE
-        }
+        isCompatibleDevice = isCompatibleDevice()
     }
 
     //格式化时间显示

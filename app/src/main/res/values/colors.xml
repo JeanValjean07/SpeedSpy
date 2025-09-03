@@ -23,6 +23,7 @@
     <color name="TextButtonText">#000000</color>
     <color name="CardView1">#FFFFFF</color>
     <color name="CardViewRV">#FAFAFA</color>
+    <color name="WarningText">#FF5252</color>
 
 
     <color name="HeadText111">#000000</color>
