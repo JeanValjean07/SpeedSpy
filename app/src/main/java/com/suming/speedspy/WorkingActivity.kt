@@ -1,7 +1,6 @@
 package com.suming.speedspy
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.Dialog
 import android.content.ContentResolver
 import android.content.ContentValues
@@ -51,24 +50,15 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
 import androidx.media3.common.C.WAKE_MODE_NETWORK
-import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DecoderReuseEvaluation
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
-import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
-import androidx.media3.exoplayer.source.TrackGroupArray
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.trackselection.TrackSelectionArray
-import androidx.media3.transformer.Codec
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -102,9 +92,8 @@ class WorkingActivity: AppCompatActivity()  {
     //音量配置参数
     private var currentVolume = 0
     //缩略图绘制参数
-    private var minPicDurationMs = 1000   //单张缩略图最短对应时长
     private var maxPicNumber = 20         //缩略图最大数量
-    private var eachPicWidth = 160        //单张缩略图最大宽度
+    private var eachPicWidth = 120       //单张缩略图最大宽度
     private var picNumber = 0             //最终决定使用的缩略图数量
     private var eachPicDuration: Int = 0   //单张缩略图最大对应时长
     //点击和滑动状态标识
@@ -290,19 +279,6 @@ class WorkingActivity: AppCompatActivity()  {
                     break
                 }
             }
-            override fun onPlayerError(error: PlaybackException) {
-                Log.e("MediaCodec", "播放出错：${error.errorCodeName} / ${error.message}")
-                when (error.errorCode) {
-                    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ->
-                        Log.e("MediaCodec", "解码器初始化失败，可考虑重试软解")
-
-                    PlaybackException.ERROR_CODE_IO_UNSPECIFIED ->
-                        Log.e("MediaCodec", "网络或文件 IO 错误")
-
-                    PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ->
-                        Log.e("MediaCodec", "直播落后，需要重新 seek 到最新位置")
-                }
-            }
         })
 
         //测试器 codec
@@ -396,17 +372,17 @@ class WorkingActivity: AppCompatActivity()  {
         rvThumbnails.layoutParams.width = 0
         val videoDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt()
         if (videoDuration != null) {
-            if (minPicDurationMs * maxPicNumber > videoDuration.div(100)*100){  //低于20秒的视频
+            if (videoDuration/1000 > maxPicNumber){
                 eachPicDuration = (videoDuration.div(100)*100) / maxPicNumber
                 picNumber = maxPicNumber
             }else{
-                eachPicDuration = videoDuration.div(maxPicNumber)
-                picNumber = maxPicNumber
+                picNumber = videoDuration/1000+1
+                eachPicDuration = (videoDuration.div(100)*100)/picNumber
             }
         } else{
             notice("视频长度获取失败,无法绘制控制界面",5000)
             finish()
-        }   //这段逻辑没写完但能正常工作？
+        }
         retriever.release()
 
 
@@ -542,9 +518,9 @@ class WorkingActivity: AppCompatActivity()  {
                     pauseVideo()
                     val recyclerView = findViewById<RecyclerView>(R.id.rvThumbnails)
                     val totalWidth2 = recyclerView.computeHorizontalScrollRange()
-                    val offset2     = recyclerView.computeHorizontalScrollOffset()
-                    val percent2    = offset2.toFloat() / totalWidth2
-                    val seekToMs2   = (percent2 * player.duration).toLong()
+                    val offset2 = recyclerView.computeHorizontalScrollOffset()
+                    val percent2 = offset2.toFloat() / totalWidth2
+                    val seekToMs2 = (percent2 * player.duration).toLong()
                     if (seekToMs2 > player.currentPosition){
                         return
                     }
@@ -1069,6 +1045,9 @@ class WorkingActivity: AppCompatActivity()  {
                 player.pause()
             }else{
                 val positionGap = scrollerPosition - videoPosition
+                if (positionGap > 5000){
+                    player.seekTo(scrollerPosition.toLong())
+                }
                 var speed5 = (((positionGap / 100).toInt()) /10.0).toFloat()
                 if (speed5 > lastPlaySpeed){
                     speed5 = speed5 + 0.1f
@@ -1366,9 +1345,6 @@ class WorkingActivity: AppCompatActivity()  {
 
     private fun preCheck(){
         isOldDevice = isOldDevice()
-        if (isOldDevice){
-            notice("当前存在兼容问题,播放假死时,请手动重启解码器",3000)
-        }
         val buttonReEncode = findViewById<Button>(R.id.buttonReEncode)
         if (isOldDevice){
             buttonReEncode.visibility = View.VISIBLE

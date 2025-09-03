@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -34,8 +35,6 @@ class WorkingActivityAdapter(
     private val picNumber: Int,
     private val eachPicDuration: Int,
 ) : RecyclerView.Adapter<WorkingActivityAdapter.ThumbViewHolder>() {
-
-
 
     //初始化—协程作用域
     private val coroutineScope_generateThumb = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -132,15 +131,22 @@ class WorkingActivityAdapter(
         try {
             retriever.setDataSource(videoPath)
             coroutineContext.ensureActive()
-            val wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-            val hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-            val h = hStr?.toIntOrNull() ?: 0
-            val w = wStr?.toIntOrNull() ?: 0
-            val ratio = if (w != 0) h.toFloat() / w else 0f
+            var wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+            var hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+            val rotateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            if (rotateStr == "90"){
+                val temp = wStr
+                wStr = hStr
+                hStr = temp
+            }  //注意视频的旋转角
+            val videoWidth = wStr?.toFloat() ?: 0f
+            val videoHeight = hStr?.toFloat() ?: 0f
+            val ratio = videoHeight.div(videoWidth)
+
             coroutineContext.ensureActive()
             //截图：截取缩略图
             val frame = retriever.getFrameAtTime(
-                ((position * eachPicDuration * 1000L).toLong()),
+                (position * eachPicDuration * 1000L),
                 MediaMetadataRetriever.OPTION_CLOSEST
             )
             coroutineContext.ensureActive()
@@ -183,11 +189,17 @@ class WorkingActivityAdapter(
         CoroutineScope(Dispatchers.IO).launch {
             val item = thumbItems[0]
             val retriever = MediaMetadataRetriever().apply { setDataSource(videoPath) }
-            val wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-            val hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-            val h = hStr?.toIntOrNull() ?: 0
-            val w = wStr?.toIntOrNull() ?: 0
-            val ratio = if (w != 0) h.toFloat() / w else 0f
+            var wStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+            var hStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+            val rotateStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+            if (rotateStr == "90"){
+                val temp = wStr
+                wStr = hStr
+                hStr = temp
+            }  //注意视频的旋转角
+            val videoWidth = wStr?.toFloat() ?: 0f
+            val videoHeight = hStr?.toFloat() ?: 0f
+            val ratio = videoHeight.div(videoWidth)
 
             val frame = retriever.getFrameAtTime(500000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             retriever.release()
