@@ -43,6 +43,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
@@ -182,8 +183,6 @@ class WorkingActivity: AppCompatActivity()  {
             insets
         }
 
-
-
         //设置刷新率
         /*
         window.attributes.preferredRefreshRate = 60.0f
@@ -217,14 +216,14 @@ class WorkingActivity: AppCompatActivity()  {
         //反序列化item + 支持用分享打开和用其他应用打开，暂不支持批量打开
         val videoItem: VideoItem? = when (intent?.action) {
             Intent.ACTION_SEND -> {
-                val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return finish()
-                VideoItem(0, uri, "from share", 0)
+                val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) ?: return finish()
+                VideoItem(0, uri, "" , 0)
             }
             Intent.ACTION_VIEW -> {
                 val uri = intent.data ?: return finish()
-                VideoItem(0, uri, "from 114514", 0)
+                VideoItem(0, uri, "", 0)
             }
-            else -> intent.getParcelableExtra("video")
+            else -> { IntentCompat.getParcelableExtra(intent, "video", VideoItem::class.java)}
         }
         if (videoItem == null) {
             Toast.makeText(this, "无法打开这条视频", Toast.LENGTH_SHORT).show()
@@ -240,7 +239,6 @@ class WorkingActivity: AppCompatActivity()  {
             .setWakeMode(WAKE_MODE_NETWORK)
             .build()
             .apply { setMediaItem(MediaItem.fromUri(videoItem.uri)) }
-
         playerView.player = player
 
 
